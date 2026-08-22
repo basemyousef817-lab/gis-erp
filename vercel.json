@@ -1,6 +1,17 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/frontend/index.html" },
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+  "functions": {
+    "server.js": {
+      "includeFiles": "projects.json"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/index.html"
+    }
   ]
 }
