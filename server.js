@@ -1,54 +1,19 @@
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
 const path = require('path');
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// ===== خدمة الملفات الثابتة (الواجهة) =====
+// ===== تقديم الملفات الثابتة =====
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// ===== ملف التخزين =====
-const DATA_FILE = './projects.json';
-
-function readProjects() {
-    try {
-        const data = fs.readFileSync(DATA_FILE, 'utf8');
-        return JSON.parse(data);
-    } catch (error) {
-        return [];
-    }
-}
-
-function writeProjects(projects) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(projects, null, 2));
-}
-
-// ===== API =====
+// ===== API تجريبي =====
 app.get('/api/projects', (req, res) => {
-    res.json(readProjects());
-});
-
-app.post('/api/projects', (req, res) => {
-    const projects = readProjects();
-    const newProject = {
-        id: Date.now(),
-        ...req.body,
-        created_at: new Date().toISOString()
-    };
-    projects.push(newProject);
-    writeProjects(projects);
-    res.status(201).json(newProject);
-});
-
-app.delete('/api/projects/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    let projects = readProjects();
-    projects = projects.filter(p => p.id !== id);
-    writeProjects(projects);
-    res.json({ message: 'تم الحذف' });
+    res.json([
+        { id: 1, name: 'مشروع تجريبي', description: 'من Vercel', location_lat: 30.0444, location_lng: 31.2357, status: 'قيد التنفيذ' }
+    ]);
 });
 
 // ===== صفحة الواجهة =====
