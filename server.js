@@ -9,10 +9,11 @@ app.use(express.json());
 // ===== تقديم الملفات الثابتة =====
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// ===== API تجريبي =====
+// ===== API =====
 app.get('/api/projects', (req, res) => {
     res.json([
-        { id: 1, name: 'مشروع تجريبي', description: 'من Vercel', location_lat: 30.0444, location_lng: 31.2357, status: 'قيد التنفيذ' }
+        { id: 1, name: 'مشروع 1', description: 'وصف المشروع', location_lat: 30.0444, location_lng: 31.2357, status: 'قيد التنفيذ' },
+        { id: 2, name: 'مشروع 2', description: 'وصف المشروع', location_lat: 30.0524, location_lng: 31.2412, status: 'منتهي' }
     ]);
 });
 
@@ -21,8 +22,5 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
-// ===== تشغيل السيرفر =====
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
-});
+// ===== تصدير التطبيق لـ Vercel =====
+module.exports = app;
