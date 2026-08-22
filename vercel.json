@@ -1,22 +1,5 @@
 {
-  "builds": [
-    {
-      "src": "frontend/index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/",
-      "dest": "/frontend/index.html"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/server.js"
-    }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/frontend/index.html" }
   ]
 }
