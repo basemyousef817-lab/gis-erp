@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏗️ GIS-ERP</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #0a0e1a; color: #e0e0e0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; }
+        h1 { color: #4fc3f7; }
+        .card { background: #1a2332; padding: 20px; border-radius: 16px; border: 1px solid #2a3a50; margin-bottom: 20px; }
+        .form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        input, select, button { padding: 10px; border-radius: 8px; border: 1px solid #2a3a50; background: #0a0e1a; color: #e0e0e0; }
+        .btn { background: #4fc3f7; color: #0a0e1a; border: none; cursor: pointer; font-weight: bold; }
+        .btn-danger { background: #ff6b6b; color: white; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #0a0e1a; color: #4fc3f7; padding: 10px; text-align: right; }
+        td { padding: 10px; border-bottom: 1px solid #2a3a50; }
+        #map { height: 400px; border-radius: 12px; margin-top: 20px; }
+        .server-status { color: #4caf50; }
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .status-active { background: #4caf50; color: white; }
+        .status-done { background: #78909c; color: white; }
+        .status-pending { background: #ffd93d; color: #0a0e1a; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .loading { color: #ffd93d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ GIS-ERP</h1>
+        <p style="color: #78909c; margin-bottom: 20px;">نظام إدارة المشاريع الهندسية المكانية</p>
+
+        <div class="card">
+            <h2>🔌 الاتصال بالخادم</h2>
+            <p id="statusText" class="loading">⏳ جاري التحقق...</p>
+        </div>
+
+        <div class="card">
+            <h2>➕ إضافة مشروع جديد</h2>
+            <div class="form-row">
+                <input type="text" id="projectName" placeholder="اسم المشروع" />
+                <input type="text" id="projectDesc" placeholder="الوصف" />
+                <input type="number" id="projectLat" placeholder="خط العرض (Lat)" step="0.00000001" />
+                <input type="number" id="projectLng" placeholder="خط الطول (Lng)" step="0.00000001" />
+                <select id="projectStatus">
+                    <option value="قيد التنفيذ">قيد التنفيذ</option>
+                    <option value="منتهي">منتهي</option>
+                    <option value="معلق">معلق</option>
+                </select>
+                <button class="btn" onclick="addProject()">➕ إضافة</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📋 قائمة المشاريع</h2>
+            <div id="projectsList"><p class="loading">⏳ جاري التحميل...</p></div>
+        </div>
+
+        <div class="card">
+            <h2>🗺️ خريطة المشاريع</h2>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ✅ تم التعديل: استخدام الرابط الصحيح للـ API
+        const API_URL = 'http://localhost:5000';
+        let map;
+
+        // ===== التحقق من الاتصال =====
+        async function checkServer() {
+            const statusText = document.getElementById('statusText');
+            try {
+                const response = await fetch(`${API_URL}/`);
+                const data = await response.json();
+                statusText.className = 'server-status';
+                statusText.textContent = `✅ متصل: ${data.message}`;
+                loadProjects();
+            } catch (error) {
+                statusText.className = 'server-status';
+                statusText.style.color = '#ff6b6b';
+                statusText.textContent = '❌ غير متصل. تأكد من تشغيل السيرفر (npm run dev)';
+            }
+        }
+
+        // ===== جلب المشاريع =====
+        async function loadProjects() {
+            const list = document.getElementById('projectsList');
+            try {
+                const response = await fetch(`${API_URL}/api/projects`);
+                const projects = await response.json();
+                if (projects.length === 0) {
+                    list.innerHTML = '<p style="color: #78909c;">📭 لا توجد مشاريع حالياً</p>';
+                } else {
+                    let html = `<table>
+                        <tr><th>#</th><th>الاسم</th><th>الوصف</th><th>الموقع</th><th>الحالة</th><th>الإجراءات</th></tr>`;
+                    projects.forEach((p, i) => {
+                        const statusClass = p.status === 'منتهي' ? 'status-done' : 
+                                          p.status === 'معلق' ? 'status-pending' : 'status-active';
+                        html += `<tr>
+                            <td>${i+1}</td>
+                            <td><strong>${p.name}</strong></td>
+                            <td>${p.description || '—'}</td>
+                            <td>${p.location_lat || ''} ${p.location_lng || ''}</td>
+                            <td><span class="status-badge ${statusClass}">${p.status}</span></td>
+                            <td><button class="btn btn-danger btn-sm" onclick="deleteProject(${p.id})">🗑️</button></td>
+                        </tr>`;
+                    });
+                    html += '</table>';
+                    list.innerHTML = html;
+                }
+                updateMap(projects);
+            } catch (error) {
+                list.innerHTML = '<p style="color: #ff6b6b;">❌ فشل تحميل المشاريع</p>';
+            }
+        }
+
+        // ===== إضافة مشروع =====
+        async function addProject() {
+            const name = document.getElementById('projectName').value.trim();
+            const description = document.getElementById('projectDesc').value.trim();
+            const lat = parseFloat(document.getElementById('projectLat').value);
+            const lng = parseFloat(document.getElementById('projectLng').value);
+            const status = document.getElementById('projectStatus').value;
+
+            if (!name) { alert('❌ من فضلك اكتب اسم المشروع'); return; }
+            if (isNaN(lat) || isNaN(lng)) { alert('❌ من فضلك أدخل إحداثيات صحيحة'); return; }
+
+            try {
+                const response = await fetch(`${API_URL}/api/projects`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, location_lat: lat, location_lng: lng, status })
+                });
+                if (response.ok) {
+                    document.getElementById('projectName').value = '';
+                    document.getElementById('projectDesc').value = '';
+                    document.getElementById('projectLat').value = '';
+                    document.getElementById('projectLng').value = '';
+                    loadProjects();
+                } else {
+                    alert('❌ فشل إضافة المشروع');
+                }
+            } catch (error) {
+                alert('❌ خطأ في الاتصال');
+            }
+        }
+
+        // ===== حذف مشروع =====
+        async function deleteProject(id) {
+            if (!confirm('🗑️ هل أنت متأكد من حذف هذا المشروع؟')) return;
+            try {
+                await fetch(`${API_URL}/api/projects/${id}`, { method: 'DELETE' });
+                loadProjects();
+            } catch (error) {
+                alert('❌ خطأ في الاتصال');
+            }
+        }
+
+        // ===== خريطة =====
+        function initMap() {
+            map = L.map('map').setView([30.0444, 31.2357], 10);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+                attribution: '© CartoDB'
+            }).addTo(map);
+        }
+
+        function updateMap(projects) {
+            if (!map) initMap();
+            map.eachLayer((layer) => {
+                if (layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+            projects.forEach(p => {
+                if (p.location_lat && p.location_lng) {
+                    L.marker([p.location_lat, p.location_lng])
+                        .addTo(map)
+                        .bindPopup(`<b>${p.name}</b><br>${p.description || ''}<br>الحالة: ${p.status}`);
+                }
+            });
+        }
+
+        // ===== تحميل أولي =====
+        checkServer();
+    </script>
+</body>
+</html>
